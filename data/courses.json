@@ -1,0 +1,34 @@
+{
+  "egeland": {
+    "id": "egeland",
+    "title": "Egeland обществознание // ЕГЭ 2026",
+    "h1": "Egeland обществознание // ЕГЭ 2026",
+    "tag": "Обществознание ЕГЭ · EGELAND",
+    "school": "egeland",
+    "school_title": "EGELAND",
+    "color": "pink",
+    "likeKey": "egeland_likes",
+    "initialLikes": 84,
+    "schedule": "files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg",
+    "months": [
+      {
+        "id": "09-september",
+        "title": "Сентябрь 2026 г.",
+        "shortTitle": "Сентябрь",
+        "dataPath": "data/courses/egeland/months/09-september/lessons.json"
+      },
+      {
+        "id": "10-october",
+        "title": "Октябрь 2026 г.",
+        "shortTitle": "Октябрь",
+        "dataPath": "data/courses/egeland/months/10-october/lessons.json"
+      },
+      {
+        "id": "11-november",
+        "title": "Ноябрь 2026 г.",
+        "shortTitle": "Ноябрь",
+        "dataPath": "data/courses/egeland/months/11-november/lessons.json"
+      }
+    ]
+  }
+}

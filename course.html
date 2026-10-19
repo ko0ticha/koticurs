@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Курс · Boton</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin></script>
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    (function(){
+      var t = localStorage.getItem('course_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Мобильная кнопка меню (Бургер) -->
+  <button type="button" class="burger" id="burgerBtn" aria-label="Меню">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app">
+    <!-- Левое меню (Курсы) -->
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <!-- Основной контент урока -->
+    <main class="main">
+      <a href="#" class="breadcrumb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Все курсы
+      </a>
+      <span class="tag" id="courseTag">Курс</span>
+      <h1 class="course-title" id="courseTitle">Загрузка...</h1>
+
+      <!-- Видеоплеер -->
+      <div class="player-embed" id="playerWrap">
+        <iframe id="videoFrame" src="" frameborder="0" allow="clipboard-write; autoplay; fullscreen" allowfullscreen loading="lazy" title="Плеер"></iframe>
+        <div class="player-empty" id="playerEmpty" style="display:none">📭 Для этого урока видео пока нет</div>
+        <a id="videoOpenBtn" href="#" target="_blank" rel="noopener" class="player-open-btn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>
+          Открыть видео
+        </a>
+      </div>
+
+      <!-- Переключатель частей видео (если в уроке >1 видео) -->
+      <div class="video-selector hidden" id="videoSelector">
+        <div class="video-selector-label">🎬 Видео урока</div>
+        <div id="videoChips" style="display:contents"></div>
+      </div>
+
+      <!-- Таймкоды и темы урока -->
+      <div class="timecodes-card hidden open" id="timecodesCard">
+        <div class="timecodes-header" onclick="toggleTimecodes()">
+          <div class="timecodes-title-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Таймкоды урока</span>
+            <span class="timecodes-count" id="timecodesCount">0</span>
+          </div>
+          <div class="timecodes-toggle-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="timecodes-list" id="timecodesList"></div>
+      </div>
+
+      <!-- Заголовок урока -->
+      <h2 class="lesson-header" id="lessonHeader"></h2>
+
+      <!-- Секция материалов (Скрипты, конспекты, ДЗ) -->
+      <div class="materials" id="materialsBox"></div>
+
+      <!-- Блок лайка -->
+      <div class="like-block">
+        <button type="button" class="like-btn" id="likeBtn" onclick="sendLike()">
+          <span class="like-heart">❤</span>
+          <span class="like-text">Нравится этот курс</span>
+          <span class="like-count" id="likeCount">—</span>
+        </button>
+        <div class="like-hint" id="likeHint">Нажми на сердечко, если курс зашёл</div>
+      </div>
+
+      <!-- Интерактивный автотест -->
+      <div id="quizListWrap"></div>
+      <div id="quizToggleWrap"></div>
+      <div class="quiz-wrap" id="quizWrap">
+        <div id="quizBox"></div>
+      </div>
+    </main>
+
+    <!-- Правая панель (Выбор месяца и список уроков) -->
+    <aside class="side-panel">
+      <select class="month-select" aria-label="Выбор месяца"></select>
+      <div class="lessons">
+        <div class="lessons-title" id="lessonsTitle">Уроки</div>
+        <div id="lessonList"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Модальное окно просмотра увеличенных картинок (Lightbox) -->
+  <div class="img-lightbox" id="imgLightbox" onclick="closeQuizImage(event)">
+    <button type="button" class="img-lightbox-close" onclick="closeQuizImage(event)" aria-label="Закрыть">×</button>
+    <img id="imgLightboxPic" src="" alt="Увеличенное изображение" onclick="event.stopPropagation()">
+    <div class="img-lightbox-hint">Клик по фону или Esc — закрыть</div>
+  </div>
+
+  <!-- Модальное окно расписания курса -->
+  <div class="schedule-modal" id="scheduleModal" onclick="closeScheduleModal(event)">
+    <div class="schedule-card" onclick="event.stopPropagation()">
+      <div class="schedule-head">
+        <div class="schedule-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span>Расписание курса</span>
+        </div>
+        <button type="button" class="schedule-close" onclick="closeScheduleModal(event)" aria-label="Закрыть">×</button>
+      </div>
+      <div class="schedule-body">
+        <img id="scheduleImg" class="schedule-img" src="files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg" alt="Расписание курса" onclick="openQuizImage(this.src)">
+      </div>
+      <div class="schedule-actions">
+        <a id="scheduleDownloadBtn" href="files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg" download class="schedule-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Скачать расписание
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
