@@ -8,6 +8,7 @@ let currentCourse = null;
 let currentMonthId = '';
 let LESSONS = [];
 let currentLessonIdx = 0;
+let currentVideoIdx = 0;
 let currentQuiz = null;
 
 const ICONS = {
@@ -24,10 +25,10 @@ const ICONS = {
   file: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/><path d="M14 3v5h5"/></svg>`,
   hw: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>`,
   link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1.15 1.15"/><path d="M14 11a5 5 0 00-7.07 0l-2 2A5 5 0 0012 20.07l1.15-1.15"/></svg>`,
-  dl: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`
+  dl: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`,
+  play: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
 };
 
-// Escape HTML helper
 function escapeHTML(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -45,7 +46,7 @@ function plural(n, one, few, many) {
 }
 
 // Convert video URL to embeddable player URL
-function getEmbedUrl(rawUrl) {
+function getEmbedUrl(rawUrl, timeSec = 0) {
   if (!rawUrl) return '';
   const url = String(rawUrl).trim();
   try {
@@ -55,24 +56,36 @@ function getEmbedUrl(rawUrl) {
     // Kinescope
     if (host.includes('kinescope.io')) {
       const m = u.pathname.match(/^\/(?:embed\/)?([a-zA-Z0-9_-]{6,})\/?$/);
-      return m ? `https://kinescope.io/embed/${m[1]}` : url;
+      const base = m ? `https://kinescope.io/embed/${m[1]}` : url;
+      return timeSec > 0 ? `${base}?t=${timeSec}` : base;
     }
     // YouTube
     if (host === 'youtu.be') {
       const id = u.pathname.replace(/^\//, '');
-      return `https://www.youtube.com/embed/${id}?autoplay=0`;
+      const t = timeSec > 0 ? `&start=${timeSec}` : '';
+      return `https://www.youtube.com/embed/${id}?autoplay=0${t}`;
     }
     if (host.includes('youtube.com')) {
-      if (u.pathname.startsWith('/embed/')) return url;
+      if (u.pathname.startsWith('/embed/')) {
+        return timeSec > 0 ? `${url}?start=${timeSec}` : url;
+      }
       const v = u.searchParams.get('v');
-      if (v) return `https://www.youtube.com/embed/${v}?autoplay=0`;
+      const t = timeSec > 0 ? `&start=${timeSec}` : '';
+      if (v) return `https://www.youtube.com/embed/${v}?autoplay=0${t}`;
     }
     // Rutube
     if (host.includes('rutube.ru')) {
       const m = u.pathname.match(/^\/(?:video|play\/embed)\/([a-zA-Z0-9_-]+)/);
-      return m ? `https://rutube.ru/play/embed/${m[1]}` : url;
+      const base = m ? `https://rutube.ru/play/embed/${m[1]}` : url;
+      return timeSec > 0 ? `${base}?t=${timeSec}` : base;
     }
-    // watch.school-such.site or rickege.com or other web players
+    // rickege.com
+    if (host.includes('rickege.com')) {
+      if (!url.includes('play=1')) {
+        return url + (url.includes('?') ? '&play=1' : '?play=1');
+      }
+      return url;
+    }
     return url;
   } catch (e) {
     return url;
@@ -153,11 +166,10 @@ function renderSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
 
-  // Group courses by school
   const schools = {};
   Object.keys(COURSES).forEach(k => {
     const c = COURSES[k];
-    const sName = c.school_title || c.school || 'Другие курсы';
+    const sName = c.school_title || c.school || 'Курсы';
     if (!schools[sName]) schools[sName] = [];
     schools[sName].push({ key: k, course: c });
   });
@@ -195,14 +207,35 @@ function renderSidebar() {
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
       <input id="sidebarCourseSearch" type="search" placeholder="Найти курс..." autocomplete="off" oninput="filterSidebarCourses(this.value)">
     </div>
-    <a href="#" class="nav-item" data-label="Все курсы">${ICONS.grid}<span>Все курсы</span></a>
-    <a href="#" class="nav-item" data-label="Расписание">${ICONS.cal}<span>Расписание</span></a>
+    <button type="button" class="nav-item" onclick="openScheduleModal()" data-label="Расписание">${ICONS.cal}<span>Расписание</span></button>
     <div class="nav-divider"></div>
     ${groupsHtml}
     <div class="nav-divider"></div>
     <button type="button" class="nav-item" id="themeToggleBtn" onclick="toggleTheme()" data-label="Тема">${ICONS.moon}<span>Тёмная тема</span></button>
   `;
   updateThemeBtn();
+}
+
+// Schedule Modal
+function openScheduleModal() {
+  const modal = document.getElementById('scheduleModal');
+  const img = document.getElementById('scheduleImg');
+  const dl = document.getElementById('scheduleDownloadBtn');
+  if (!modal) return;
+
+  const schedulePath = currentCourse?.schedule || 'files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg';
+  if (img) img.src = schedulePath;
+  if (dl) dl.href = schedulePath;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeScheduleModal(e) {
+  if (e && e.target && e.target.classList.contains('schedule-card')) return;
+  const modal = document.getElementById('scheduleModal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // Load Course Config & Months
@@ -226,7 +259,6 @@ async function loadCourseConfig() {
     return;
   }
 
-  // Update page header info
   document.title = (currentCourse.title || 'Курс') + ' · Boton';
   document.getElementById('courseTag').textContent = currentCourse.tag || 'Курс';
   document.getElementById('courseTitle').textContent = currentCourse.title || currentCourse.h1 || '';
@@ -258,7 +290,7 @@ function renderMonthSelect() {
   loadLessons();
 }
 
-// Load Lessons for current course & month
+// Load Lessons
 async function loadLessons() {
   const listEl = document.getElementById('lessonList');
   listEl.innerHTML = '<div style="padding:14px;color:var(--text-3);font-size:12.5px;font-weight:600">⏳ Загрузка уроков...</div>';
@@ -279,7 +311,6 @@ async function loadLessons() {
   document.getElementById('lessonsTitle').textContent = `Уроки · ${LESSONS.length}`;
   renderLessonList();
 
-  // Select lesson from hash or 0
   const match = window.location.hash.match(/^#lesson-(\d+)$/);
   const startIdx = match ? Math.min(parseInt(match[1], 10), Math.max(0, LESSONS.length - 1)) : 0;
   selectLesson(startIdx);
@@ -307,31 +338,23 @@ function renderLessonList() {
   }).join('');
 }
 
-// Select lesson and update UI
+// Select lesson
 function selectLesson(idx) {
   if (idx < 0 || idx >= LESSONS.length) return;
   currentLessonIdx = idx;
   const lesson = LESSONS[idx];
 
-  // Update hash
   history.replaceState(null, '', `#lesson-${idx}`);
 
-  // Highlight in sidebar
   document.querySelectorAll('.lesson-item').forEach(b => b.classList.remove('active'));
   const curBtn = document.querySelector(`.lesson-item[data-idx="${idx}"]`);
   if (curBtn) curBtn.classList.add('active');
 
-  // Set Header
   const titleDisplay = (lesson.num && !lesson.name.startsWith('Урок') ? lesson.num + '. ' : '') + (lesson.name || lesson.title || '');
   document.getElementById('lessonHeader').textContent = titleDisplay;
 
-  // Render Video
   renderLessonVideo(lesson);
-
-  // Render Materials
   renderLessonMaterials(lesson);
-
-  // Render Quiz
   renderLessonQuiz(lesson);
 }
 
@@ -343,7 +366,6 @@ function renderLessonVideo(lesson) {
   const selector = document.getElementById('videoSelector');
   const chipsBox = document.getElementById('videoChips');
 
-  // Normalize videos
   let videos = [];
   if (Array.isArray(lesson.videos) && lesson.videos.length) {
     videos = lesson.videos;
@@ -357,13 +379,13 @@ function renderLessonVideo(lesson) {
     empty.style.display = 'flex';
     openBtn.style.display = 'none';
     selector.classList.add('hidden');
+    renderTimecodes([]);
     return;
   }
 
   empty.style.display = 'none';
   frame.style.display = 'block';
 
-  // Multi-part selector chips
   if (videos.length > 1) {
     selector.classList.remove('hidden');
     chipsBox.innerHTML = videos.map((v, i) => `
@@ -380,19 +402,21 @@ function renderLessonVideo(lesson) {
 }
 
 function playVideoIndex(i) {
+  currentVideoIdx = i;
   const lesson = LESSONS[currentLessonIdx];
   if (!lesson) return;
   const videos = lesson.videos || (lesson.items || []).filter(it => it.type === 'video');
   const v = videos[i];
   if (!v) return;
 
-  // Highlight chip
   document.querySelectorAll('.video-chip').forEach((c, idx) => c.classList.toggle('active', idx === i));
 
   const frame = document.getElementById('videoFrame');
   const openBtn = document.getElementById('videoOpenBtn');
+  
+  // Use embed_url if present, otherwise getEmbedUrl
+  const embed = v.embed_url || getEmbedUrl(v.url || v.label);
   const rawUrl = v.url || v.label;
-  const embed = getEmbedUrl(rawUrl);
 
   frame.src = embed;
   if (rawUrl) {
@@ -401,6 +425,65 @@ function playVideoIndex(i) {
   } else {
     openBtn.style.display = 'none';
   }
+
+  // Render Timecodes for this video
+  renderTimecodes(v.chapters || []);
+}
+
+// Timecodes & Chapters
+function renderTimecodes(chapters) {
+  const card = document.getElementById('timecodesCard');
+  const list = document.getElementById('timecodesList');
+  const count = document.getElementById('timecodesCount');
+
+  if (!chapters || !chapters.length) {
+    if (card) card.classList.add('hidden');
+    return;
+  }
+
+  if (count) count.textContent = chapters.length;
+  if (card) {
+    card.classList.remove('hidden');
+    card.classList.add('open');
+  }
+
+  if (list) {
+    list.innerHTML = chapters.map((ch, idx) => `
+      <button type="button" class="timecode-item${idx === 0 ? ' active' : ''}" data-pos="${ch.position}" onclick="seekToTime(${ch.position}, ${idx})">
+        <span class="timecode-badge">${ch.time}</span>
+        <span class="timecode-name">${escapeHTML(ch.title || ('Тема ' + (idx + 1)))}</span>
+      </button>
+    `).join('');
+  }
+}
+
+function toggleTimecodes() {
+  const card = document.getElementById('timecodesCard');
+  if (card) card.classList.toggle('open');
+}
+
+function seekToTime(seconds, chapterIdx) {
+  const frame = document.getElementById('videoFrame');
+  if (!frame) return;
+
+  // Highlight active timecode
+  document.querySelectorAll('.timecode-item').forEach((it, i) => {
+    it.classList.toggle('active', i === chapterIdx);
+  });
+
+  // Try postMessage for Kinescope player
+  try {
+    frame.contentWindow.postMessage({ type: 'player:seek', data: { time: seconds } }, '*');
+    frame.contentWindow.postMessage({ event: 'seek', time: seconds }, '*');
+  } catch (e) {}
+
+  // Update URL parameter ?t=seconds or reload with timestamp
+  try {
+    const curUrl = new URL(frame.src, window.location.href);
+    curUrl.searchParams.set('t', seconds);
+    curUrl.searchParams.set('start', seconds);
+    frame.src = curUrl.toString();
+  } catch (e) {}
 }
 
 // Render Materials Cards
@@ -408,7 +491,6 @@ function renderLessonMaterials(lesson) {
   const box = document.getElementById('materialsBox');
   if (!box) return;
 
-  // Normalize files
   let lessonFiles = [];
   let homeworkFiles = [];
   let linkFiles = [];
@@ -536,7 +618,7 @@ function initLikes() {
   const isLiked = localStorage.getItem(likeKey + '_user') === '1';
   let count = parseInt(localStorage.getItem(likeKey + '_count'), 10);
   if (isNaN(count)) {
-    count = currentCourse.initialLikes || 35;
+    count = currentCourse.initialLikes || 50;
     localStorage.setItem(likeKey + '_count', count);
   }
 
@@ -556,7 +638,7 @@ function sendLike() {
   const countEl = document.getElementById('likeCount');
   const hintEl = document.getElementById('likeHint');
 
-  let count = parseInt(localStorage.getItem(likeKey + '_count'), 10) || 35;
+  let count = parseInt(localStorage.getItem(likeKey + '_count'), 10) || 50;
 
   if (!isLiked) {
     count++;
@@ -568,14 +650,13 @@ function sendLike() {
   }
 }
 
-// KaTeX LaTeX formatting
+// KaTeX formatting
 function formatQuizText(raw) {
   let s = String(raw ?? '');
   if (!s) return '';
   s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   if (window.katex) {
-    // Replace $$...$$, $...$, \[...\], \(...\)
     const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
     let parts = [];
     let last = 0, m;
@@ -786,7 +867,6 @@ function checkQuiz() {
     `;
   }
 
-  // Update accordion height
   const wrap = document.getElementById('quizWrap');
   if (wrap) wrap.style.maxHeight = wrap.scrollHeight + 'px';
 }
@@ -811,7 +891,7 @@ function resetQuiz() {
   updateQuizProgress();
 }
 
-// Lightbox helper
+// Lightbox
 function openQuizImage(src) {
   const box = document.getElementById('imgLightbox');
   const pic = document.getElementById('imgLightboxPic');
@@ -830,7 +910,14 @@ function closeQuizImage(e) {
   document.body.style.overflow = '';
 }
 
-// Global initialization
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeQuizImage();
+    closeScheduleModal();
+  }
+});
+
+// Initialization
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initSidebar();
