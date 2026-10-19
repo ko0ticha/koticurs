@@ -6,15 +6,24 @@
 
 ## 🚀 Быстрый запуск
 
-Для корректной загрузки данных уроков и предотвращения ограничений CORS браузера запустите локальный сервер из этой папки:
-
+### Вариант 1: Локально
 ```bash
-# В терминале в папке проекта:
 python3 -m http.server 8000
 ```
+После этого откройте: **[http://localhost:8000](http://localhost:8000)**
 
-После этого откройте в браузере:
-👉 **[http://localhost:8000](http://localhost:8000)**
+### Вариант 2: Деплой на GitHub Pages
+1. Создайте репозиторий на GitHub и загрузите файлы проекта:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial course platform commit"
+   git branch -M main
+   git remote add origin https://github.com/<ваш-логин>/<имя-репозитория>.git
+   git push -u origin main
+   ```
+2. В репозитории на GitHub перейдите в **Settings** → **Pages** → **Source**: выберите ветку `main` и нажмите **Save**.
+3. Сайт мгновенно станет доступен по адресу `https://<ваш-логин>.github.io/<имя-репозитория>/` (все файлы `.nojekyll`, `404.html` и относительные пути уже настроены!).
 
 ---
 

@@ -1,5 +1,6 @@
 /**
  * Application logic for Courses Website (1:1 Replica)
+ * Optimized for Mobile, Tablets & GitHub Pages
  */
 
 let COURSES = {};
@@ -10,6 +11,19 @@ let LESSONS = [];
 let currentLessonIdx = 0;
 let currentVideoIdx = 0;
 let currentQuiz = null;
+
+// Base path helper for GitHub Pages and local subdirectories
+function getBasePath() {
+  const p = window.location.pathname;
+  return p.substring(0, p.lastIndexOf('/') + 1) || './';
+}
+
+function resolveUrl(url) {
+  if (!url || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('#')) {
+    return url;
+  }
+  return getBasePath() + url.replace(/^\//, '');
+}
 
 const ICONS = {
   grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7l10-5 10 5-10 5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
@@ -45,7 +59,7 @@ function plural(n, one, few, many) {
   return many;
 }
 
-// Convert video URL to embeddable player URL
+// Convert video URL to embeddable player URL without triggering domain restrictions
 function getEmbedUrl(rawUrl, timeSec = 0) {
   if (!rawUrl) return '';
   const url = String(rawUrl).trim();
@@ -53,12 +67,6 @@ function getEmbedUrl(rawUrl, timeSec = 0) {
     const u = new URL(url, window.location.href);
     const host = u.hostname.toLowerCase();
 
-    // Kinescope
-    if (host.includes('kinescope.io')) {
-      const m = u.pathname.match(/^\/(?:embed\/)?([a-zA-Z0-9_-]{6,})\/?$/);
-      const base = m ? `https://kinescope.io/embed/${m[1]}` : url;
-      return timeSec > 0 ? `${base}?t=${timeSec}` : base;
-    }
     // YouTube
     if (host === 'youtu.be') {
       const id = u.pathname.replace(/^\//, '');
@@ -81,9 +89,17 @@ function getEmbedUrl(rawUrl, timeSec = 0) {
     }
     // rickege.com
     if (host.includes('rickege.com')) {
-      if (!url.includes('play=1')) {
-        return url + (url.includes('?') ? '&play=1' : '?play=1');
+      let rUrl = url;
+      if (!rUrl.includes('play=1')) {
+        rUrl += (rUrl.includes('?') ? '&play=1' : '?play=1');
       }
+      if (timeSec > 0) {
+        rUrl += `&t=${timeSec}`;
+      }
+      return rUrl;
+    }
+    // watch.school-such.site (Authorized host - do not rewrite to kinescope.io to avoid 403 Forbidden)
+    if (host.includes('school-such.site')) {
       return url;
     }
     return url;
@@ -114,7 +130,7 @@ function updateThemeBtn() {
   btn.innerHTML = (isDark ? ICONS.sun : ICONS.moon) + `<span>${isDark ? 'Светлая тема' : 'Тёмная тема'}</span>`;
 }
 
-// Sidebar toggle & search
+// Sidebar toggle & mobile handling
 function initSidebar() {
   const app = document.querySelector('.app');
   let collapsed = localStorage.getItem('course_sidebar_collapsed');
@@ -140,6 +156,18 @@ function initSidebar() {
       burger.classList.remove('open');
       overlay.classList.remove('show');
       document.body.style.overflow = '';
+    });
+
+    // Auto-close on mobile when selecting a course or section
+    sidebar.addEventListener('click', e => {
+      if (e.target.closest('a') || e.target.closest('button')) {
+        if (window.innerWidth <= 820 && !e.target.closest('#sidebarCollapseBtn')) {
+          sidebar.classList.remove('open');
+          burger.classList.remove('open');
+          overlay.classList.remove('show');
+          document.body.style.overflow = '';
+        }
+      }
     });
   }
 }
@@ -223,9 +251,11 @@ function openScheduleModal() {
   const dl = document.getElementById('scheduleDownloadBtn');
   if (!modal) return;
 
-  const schedulePath = currentCourse?.schedule || 'files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg';
-  if (img) img.src = schedulePath;
-  if (dl) dl.href = schedulePath;
+  const rawPath = currentCourse?.schedule || 'files/egeland/photos/photo_1@19-10-2026_19-26-14.jpg';
+  const fullPath = resolveUrl(rawPath);
+
+  if (img) img.src = fullPath;
+  if (dl) dl.href = fullPath;
 
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -238,13 +268,13 @@ function closeScheduleModal(e) {
   document.body.style.overflow = '';
 }
 
-// Load Course Config & Months
+// Load Course Config & Months (GitHub Pages safe)
 async function loadCourseConfig() {
   const params = new URLSearchParams(window.location.search);
   const requestedKey = params.get('c');
 
   try {
-    const res = await fetch('data/courses.json');
+    const res = await fetch(resolveUrl('data/courses.json'));
     if (!res.ok) throw new Error('Cannot load courses.json');
     COURSES = await res.json();
   } catch (err) {
@@ -297,14 +327,14 @@ async function loadLessons() {
 
   const months = currentCourse.months || [];
   const curMonth = months.find(m => m.id === currentMonthId) || months[0];
-  const dataPath = curMonth ? curMonth.dataPath : `data/courses/${currentCourseKey}/lessons.json`;
+  const rawDataPath = curMonth ? curMonth.dataPath : `data/courses/${currentCourseKey}/lessons.json`;
 
   try {
-    const res = await fetch(dataPath);
+    const res = await fetch(resolveUrl(rawDataPath));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     LESSONS = await res.json();
   } catch (e) {
-    console.warn('Could not load lessons from ' + dataPath, e);
+    console.warn('Could not load lessons from ' + rawDataPath, e);
     LESSONS = [];
   }
 
@@ -313,7 +343,7 @@ async function loadLessons() {
 
   const match = window.location.hash.match(/^#lesson-(\d+)$/);
   const startIdx = match ? Math.min(parseInt(match[1], 10), Math.max(0, LESSONS.length - 1)) : 0;
-  selectLesson(startIdx);
+  selectLesson(startIdx, false);
 }
 
 function renderLessonList() {
@@ -327,7 +357,7 @@ function renderLessonList() {
     const numDisplay = l.num || (i + 1);
     const dateDisplay = l.date || '';
     return `
-      <button type="button" class="lesson-item${i === currentLessonIdx ? ' active' : ''}" data-idx="${i}" onclick="selectLesson(${i})">
+      <button type="button" class="lesson-item${i === currentLessonIdx ? ' active' : ''}" data-idx="${i}" onclick="selectLesson(${i}, true)">
         <span class="lesson-num">${escapeHTML(numDisplay)}</span>
         <span class="lesson-body">
           ${dateDisplay ? `<span class="lesson-date">${escapeHTML(dateDisplay)}</span>` : ''}
@@ -338,8 +368,8 @@ function renderLessonList() {
   }).join('');
 }
 
-// Select lesson
-function selectLesson(idx) {
+// Select lesson (with mobile auto-scroll to player)
+function selectLesson(idx, isUserClick = false) {
   if (idx < 0 || idx >= LESSONS.length) return;
   currentLessonIdx = idx;
   const lesson = LESSONS[idx];
@@ -356,6 +386,14 @@ function selectLesson(idx) {
   renderLessonVideo(lesson);
   renderLessonMaterials(lesson);
   renderLessonQuiz(lesson);
+
+  // Smooth scroll up to player on mobile / tablet when user taps a lesson
+  if (isUserClick && window.innerWidth <= 1100) {
+    const playerWrap = document.getElementById('playerWrap');
+    if (playerWrap) {
+      playerWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }
 
 // Render Video & Multi-video chips
@@ -414,7 +452,7 @@ function playVideoIndex(i) {
   const frame = document.getElementById('videoFrame');
   const openBtn = document.getElementById('videoOpenBtn');
   
-  // Use embed_url if present, otherwise getEmbedUrl
+  // Use embed_url directly or getEmbedUrl (maintaining whitelist without 403)
   const embed = v.embed_url || getEmbedUrl(v.url || v.label);
   const rawUrl = v.url || v.label;
 
@@ -471,13 +509,15 @@ function seekToTime(seconds, chapterIdx) {
     it.classList.toggle('active', i === chapterIdx);
   });
 
-  // Try postMessage for Kinescope player
+  // Try postMessage for player seek
   try {
     frame.contentWindow.postMessage({ type: 'player:seek', data: { time: seconds } }, '*');
     frame.contentWindow.postMessage({ event: 'seek', time: seconds }, '*');
+    frame.contentWindow.postMessage({ action: 'seek', value: seconds }, '*');
+    frame.contentWindow.postMessage(JSON.stringify({ event: 'seek', time: seconds }), '*');
   } catch (e) {}
 
-  // Update URL parameter ?t=seconds or reload with timestamp
+  // Update ?t= param if needed
   try {
     const curUrl = new URL(frame.src, window.location.href);
     curUrl.searchParams.set('t', seconds);
@@ -585,7 +625,7 @@ function renderLessonMaterials(lesson) {
 
 function renderFileItem(f) {
   const label = f.label || 'Файл';
-  const url = f.url || '#';
+  const url = resolveUrl(f.url || '#');
   return `
     <div class="mat-file">
       <a href="${escapeHTML(url)}" target="_blank" rel="noopener" class="mat-file-open" title="${escapeHTML(label)}">
@@ -601,7 +641,7 @@ function renderFileItem(f) {
 
 function renderLinkItem(f) {
   const label = f.label || 'Открыть ссылку';
-  const url = f.url || '#';
+  const url = resolveUrl(f.url || '#');
   return `
     <div class="mat-file">
       <a href="${escapeHTML(url)}" target="_blank" rel="noopener" class="mat-file-open" title="${escapeHTML(label)}">
@@ -614,6 +654,8 @@ function renderLinkItem(f) {
 
 // Like functionality
 function initLikes() {
+  const btn = document.getElementById('likeBtn');
+  if (!btn) return;
   const likeKey = currentCourse.likeKey || (currentCourseKey + '_likes');
   const isLiked = localStorage.getItem(likeKey + '_user') === '1';
   let count = parseInt(localStorage.getItem(likeKey + '_count'), 10);
@@ -622,12 +664,11 @@ function initLikes() {
     localStorage.setItem(likeKey + '_count', count);
   }
 
-  const btn = document.getElementById('likeBtn');
   const countEl = document.getElementById('likeCount');
   const hintEl = document.getElementById('likeHint');
 
   if (countEl) countEl.textContent = count;
-  if (btn) btn.classList.toggle('liked', isLiked);
+  btn.classList.toggle('liked', isLiked);
   if (hintEl && isLiked) hintEl.textContent = 'Спасибо за вашу оценку!';
 }
 

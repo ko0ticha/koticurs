@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
   <title>Курс · Boton</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,7 +42,7 @@
 
       <!-- Видеоплеер -->
       <div class="player-embed" id="playerWrap">
-        <iframe id="videoFrame" src="" frameborder="0" allow="clipboard-write; autoplay; fullscreen" allowfullscreen loading="lazy" title="Плеер"></iframe>
+        <iframe id="videoFrame" src="" frameborder="0" allow="clipboard-write; autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="no-referrer" title="Плеер"></iframe>
         <div class="player-empty" id="playerEmpty" style="display:none">📭 Для этого урока видео пока нет</div>
         <a id="videoOpenBtn" href="#" target="_blank" rel="noopener" class="player-open-btn" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>
@@ -75,16 +76,6 @@
 
       <!-- Секция материалов (Скрипты, конспекты, ДЗ) -->
       <div class="materials" id="materialsBox"></div>
-
-      <!-- Блок лайка -->
-      <div class="like-block">
-        <button type="button" class="like-btn" id="likeBtn" onclick="sendLike()">
-          <span class="like-heart">❤</span>
-          <span class="like-text">Нравится этот курс</span>
-          <span class="like-count" id="likeCount">—</span>
-        </button>
-        <div class="like-hint" id="likeHint">Нажми на сердечко, если курс зашёл</div>
-      </div>
 
       <!-- Интерактивный автотест -->
       <div id="quizListWrap"></div>
